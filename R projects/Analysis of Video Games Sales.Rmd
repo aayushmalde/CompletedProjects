@@ -1,0 +1,262 @@
+---
+title: "FinalProject"
+author: "Aayush Malde, Daniel Bonilla, Henry McLane, James Sweat"
+date: "10/28/2020"
+output: html_document
+---
+
+```{r}
+#import package
+vg_data<-read.csv("C:\\Users\\henry\\Desktop\\STAT 1601 Work\\vgsales.csv")
+
+#load packages
+library(dplyr)
+library(RColorBrewer)
+library(ggplot2)
+
+#make dataset first 150 entries
+vg_data<-vg_data[0:150,]
+
+#(c) Some data cleaning. Depending on how clean your dataset is, this might include: renaming columns, converting the variables the imported dataset to the appropriate vector types,mutating a numerical variables to categorical, cleaning up or substituting categories of a character vector, etc.
+
+
+#replace columns with sales*millions, create ranking to determine top_
+
+vg_data<-vg_data%>%
+  mutate(USA_Sales=NA_Sales*1000000)%>%
+  mutate(Europe_Sales=EU_Sales*1000000)%>%
+  mutate(Japan_Sales=JP_Sales*1000000)%>%
+  mutate(Other_Sales=Other_Sales*1000000)%>%
+  mutate(Total_Sales=Global_Sales*1000000)%>%
+  mutate(Ranking=ifelse(Rank<=10,"Top_10", ifelse(Rank<=50, "Top_50", ifelse(Rank<=100, "Top_100", ifelse(Rank<=1000, "Top_150", "Not Worthy")))))%>%
+  select(-(c(7,8,9,11)))
+
+#rearrange columns to proper order
+vg_data<-vg_data[, c(1,2,3,4,5,6,8,9,10,7,11,12)]
+
+#make Year into numeric
+vg_data$Year<-as.numeric(vg_data$Year)
+
+#replace the 0s with NAs so that mean function works
+vg_data[is.na(vg_data)]<-0
+
+#(a) Find appropriate summary measures of key numeric variables (measures of center and spread).
+#Make frequency tables and two-way tables for categorical variables. Also, summary of numerical variables by groups.
+
+#year
+summary(vg_data$Year)
+sd(vg_data$Year)
+
+#usa
+summary(vg_data$USA_Sales)
+sd(vg_data$USA_Sales)
+
+#europe
+summary(vg_data$Europe_Sales)
+sd(vg_data$Europe_Sales)
+
+#japan
+summary(vg_data$Japan_Sales)
+sd(vg_data$Japan_Sales)
+
+#other countries
+summary(vg_data$Other_Sales)
+sd(vg_data$Other_Sales)
+
+#total
+summary(vg_data$Total_Sales)
+sd(vg_data$Total_Sales)
+
+#frequency
+table(vg_data$Name)
+
+table(vg_data$Platform)
+
+table(vg_data$Genre)
+
+table(vg_data$Publisher)
+
+#two way tables
+vg_data%>%
+  select(Publisher,Genre)%>%
+  table()
+
+vg_data%>%
+  select(Platform,Genre)%>%
+  table()
+
+vg_data%>%
+  select(Publisher,Ranking)%>%
+  table()
+
+#by groups
+
+vg_data%>%
+  group_by(Year)%>%
+  summarize(Count=n())
+
+vg_data%>%
+  group_by(Platform)%>%
+  summarize(Count=n())
+
+#(b) Subsetting (or filtering) the data to summarize key variables. Think about interesting questions you can investigate through filtering the data.
+
+PopularModernShooters<-vg_data%>%
+  filter(Year>2000,Rank<=50,Genre=="Shooter")
+head(PopularModernShooters)
+
+BestSellingPS2Games<-vg_data%>%
+  filter(Platform=="PS2",Total_Sales>13370000)
+head(BestSellingPS2Games)
+
+OldNintendoClassics<-vg_data%>%
+  filter(Publisher=="Nintendo",Year<2000,Total_Sales>13370000)
+head(OldNintendoClassics,10)
+
+#View(vg_data)
+head(vg_data,10)
+```
+
+```{r}
+#a) Make at least one bar graph or wordcloud of key categorical variables. Make at least one histogram or boxplot of key numerical variables.
+
+library(ggwordcloud)
+dat<-vg_data%>%
+  group_by(Publisher,Genre)%>%
+  summarise(counts=n())
+
+ggplot(dat, aes(label=Publisher,size=counts,color=Genre))+
+  geom_text_wordcloud_area(rm_outside = TRUE)+
+  scale_size_area(max_size = 10)
+
+```
+
+```{r}
+ggplot(vg_data,aes(x=Total_Sales))+
+  geom_histogram(bins = 13, fill="turquoise", color="black")+
+  theme(axis.text.x = element_text(angle = 30),plot.title = element_text(hjust = 0.5))+
+  labs(x="Total Sales", y="Amount of Games", title="Distribution of Total Sales")
+```
+
+
+```{r}
+
+ggplot(vg_data, aes(x=Ranking, Japan_Sales))+
+  geom_boxplot(fill="pink")
+
+
+```
+
+
+
+```{r}
+
+ggplot(vg_data,aes(x=Rank,y=Total_Sales))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+
+```
+
+
+
+```{r}
+# Make at least one visualization depicting 3 (or more) variables on the same graph. For example, a bubble plot or a facet-wrapped graph or a side-by-side boxplot (embedding an additional categorical variable).
+
+ggplot(vg_data, aes(x=Rank, y=Publisher, size=Total_Sales, fill=Ranking))+
+  geom_point(shape=21, alpha=0.5)+
+  scale_size(range=c(0.1,15))+
+  theme(axis.text.x=element_text(angle=90),
+        plot.title=element_text(hjust = 0.5))+
+  labs(y="Publisher", x="Rank",title="The Frequency of Ranked Games by Publisher")
+
+
+ggplot(vg_data, aes(y=Total_Sales, x=Rank,fill=Ranking, size=Year))+
+  geom_point(shape=21, alpha=0.30)+
+  scale_size(range=c(0.1,14))+
+  theme(axis.text.x=element_text(angle=90),
+        plot.title=element_text(hjust = 0.5))+
+  labs(x="Rank", y="Total Sales",title="The Total Sales of a Game Predicted by Rank")
+```
+
+
+```{r}
+
+#(a) Build at least one multiple (or simple linear) regression model. Pick reasonable values for your predictor variables to make an interval prediction of the response variable.
+
+vgmodel.data<-vg_data%>%
+  select(Rank, Year, USA_Sales, Europe_Sales, Japan_Sales, Other_Sales, Total_Sales)
+
+vg.model<-lm(Total_Sales~.,vgmodel.data)
+
+library(MASS)
+
+Aic.model<-stepAIC(vg.model, direction = "both", trace = FALSE)
+
+detach("package:MASS")
+
+summary(Aic.model)
+
+#interpolation
+newvalues<-data.frame(USA_Sales=7500000,Europe_Sales=1500000,Japan_Sales=350000,Other_Sales=500000,Total_Sales=10000000)
+predict(Aic.model,newvalues, interval = "predict")
+
+#extrapolation
+newvalues<-data.frame(USA_Sales=45000000,Europe_Sales=30000000 ,Japan_Sales=13000000
+,Other_Sales=11000000,Total_Sales=90000000)
+predict(Aic.model,newvalues, interval = "predict")
+```
+
+```{r}
+#(b) Build at least one logistic regression model. Pick reasonable values for your predictor variables to make an interval prediction of the response variable.
+
+vgmodel2.data<-vgmodel.data%>%
+  mutate(After2000=ifelse(Year>2000,1,0))%>%
+  select(-2)
+
+logit<- glm(After2000~., data=vgmodel2.data,family = "binomial")
+
+library(MASS)
+
+new.logit<-stepAIC(logit,direction = "both",trace = FALSE)
+
+summary(new.logit)
+
+detach("package:MASS")
+
+exp(coef(new.logit))
+
+#interpolation then extrapolation
+newvalues<-data.frame(USA_Sales=c(7500000,45000000),Japan_Sales=c(350000,13000000), Other_Sales=c(500000,11000000))
+predict(new.logit,newvalues,type = "response")
+
+```
+
+```{r}
+#Conduct a one-sample inference - either a confidence interval or hypothesis testing. Note, no need to include a hypothesis test if you have no valid conjecture to test.
+sumTotalSales<-sum(vg_data$Total_Sales)
+sumTotalSales
+
+nintendoSales<-vg_data%>%
+  filter(Publisher=="Nintendo")
+
+sumNintendoSales<-sum(nintendoSales$Total_Sales)
+sumNintendoSales
+
+prop.test(sumNintendoSales,sumTotalSales, conf.level = 0.95)
+```
+
+```{r}
+#Conduct a two-sample inference - either a confidence interval or hypothesis testing. Note, no need to include a hypothesis test if you have no valid conjecture to test.
+activisionSales<-vg_data%>%
+  filter(Publisher=="Activision")
+
+sumActivisionUSASales<-sum(activisionSales$USA_Sales)
+
+sumNintendoUSASales<-sum(nintendoSales$USA_Sales)
+
+sumActivisionSales<-sum(activisionSales$Total_Sales)
+
+prop.test(c(sumActivisionUSASales, sumNintendoUSASales), c(sumActivisionSales, sumNintendoSales), conf.level = 0.95)
+```
+
